@@ -2,433 +2,318 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
-/>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Professional Stable AR</title>
 
-<!-- AFRAME -->
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-<!-- MINDAR -->
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-}
+*{margin:0;padding:0;box-sizing:border-box;}
 
 html,body{
-width:100%;
-height:100%;
-overflow:hidden;
-background:#000;
-font-family:Arial,sans-serif;
-touch-action:none;
--webkit-user-select:none;
-user-select:none;
+  width:100%;height:100%;
+  overflow:hidden;
+  background:#000;
+  font-family:Arial,sans-serif;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
 }
 
-body{
-position:fixed;
-inset:0;
-}
+body{position:fixed;inset:0;}
 
-canvas{
-display:block;
-image-rendering:auto;
-}
+canvas{display:block;image-rendering:auto;}
 
+/* Loading screen */
 #loading{
-position:fixed;
-inset:0;
-background:#000;
-display:flex;
-justify-content:center;
-align-items:center;
-z-index:9999;
-color:#fff;
-font-size:18px;
-letter-spacing:.5px;
-transition:opacity .3s ease;
+  position:fixed;inset:0;
+  background:#000;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:16px;
+  z-index:9999;
+  color:#fff;font-size:18px;letter-spacing:.5px;
+  transition:opacity .4s ease;
 }
+#loading.hide{opacity:0;pointer-events:none;}
 
-#loading.hide{
-opacity:0;
-pointer-events:none;
+#loading-spinner{
+  width:36px;height:36px;
+  border:3px solid rgba(255,255,255,.2);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .8s linear infinite;
 }
+@keyframes spin{to{transform:rotate(360deg);}}
 
+/* Error screen */
+#error{
+  position:fixed;inset:0;
+  background:#000;
+  display:none;flex-direction:column;
+  justify-content:center;align-items:center;gap:12px;
+  z-index:9999;
+  color:#ff5555;font-size:16px;
+  text-align:center;padding:24px;
+}
+#error.show{display:flex;}
+
+/* Audio tap prompt */
 #tap{
-position:fixed;
-left:50%;
-bottom:25px;
-transform:translateX(-50%);
-padding:12px 18px;
-background:rgba(0,0,0,.72);
-color:#fff;
-font-size:14px;
-border-radius:14px;
-z-index:999;
-backdrop-filter:blur(10px);
+  position:fixed;
+  left:50%;bottom:env(safe-area-inset-bottom, 25px);
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 25px);
+  transform:translateX(-50%);
+  padding:12px 20px;
+  background:rgba(0,0,0,.75);
+  color:#fff;font-size:14px;
+  border-radius:14px;z-index:999;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transition:opacity .3s ease;
+  white-space:nowrap;
+  pointer-events:none;
 }
-
-#tap.hide{
-display:none;
-}
-
+#tap.hide{opacity:0;}
 </style>
 </head>
 
 <body>
 
-<div id="loading">Loading AR...</div>
+<div id="loading">
+  <div id="loading-spinner"></div>
+  <span>Loading AR…</span>
+</div>
 
-<div id="tap">Tap once to enable audio</div>
+<div id="error">
+  <span>⚠️ Could not load AR target.<br>Please check your connection and refresh.</span>
+</div>
+
+<div id="tap" class="hide">Tap to enable audio</div>
 
 <a-scene
-
-embedded
-
-vr-mode-ui="enabled:false"
-
-device-orientation-permission-ui="enabled:false"
-
-color-space="sRGB"
-
-renderer="
-alpha:true;
-antialias:true;
-precision:mediump;
-colorManagement:true;
-sortObjects:true;
-physicallyCorrectLights:false;
-logarithmicDepthBuffer:true;
-powerPreference:high-performance;
-"
-
-mindar-image="
-imageTargetSrc: targets.mind;
-
-autoStart: true;
-
-uiLoading: no;
-uiScanning: yes;
-uiError: no;
-
-maxTrack: 1;
-
-filterMinCF: 0.001;
-filterBeta: 0.01;
-
-warmupTolerance: 5;
-missTolerance: 3;
-"
-
+  embedded
+  vr-mode-ui="enabled:false"
+  device-orientation-permission-ui="enabled:false"
+  color-space="sRGB"
+  renderer="
+    alpha:true;
+    antialias:true;
+    precision:mediump;
+    colorManagement:true;
+    sortObjects:true;
+    physicallyCorrectLights:false;
+    logarithmicDepthBuffer:true;
+    powerPreference:high-performance;
+  "
+  mindar-image="
+    imageTargetSrc: targets.mind;
+    autoStart: true;
+    uiLoading: no;
+    uiScanning: yes;
+    uiError: no;
+    maxTrack: 1;
+    filterMinCF: 0.001;
+    filterBeta: 0.01;
+    warmupTolerance: 5;
+    missTolerance: 5;
+  "
 >
 
-<a-assets timeout="20000">
+  <a-assets timeout="30000" id="assets">
+    <video
+      id="video"
+      src="video.mp4"
+      preload="auto"
+      crossorigin="anonymous"
+      loop
+      playsinline
+      webkit-playsinline
+      muted
+    ></video>
+  </a-assets>
 
-<video
-id="video"
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-src="video.mp4"
-
-preload="auto"
-
-crossorigin="anonymous"
-
-loop
-
-playsinline
-webkit-playsinline
-
-muted
-
-></video>
-
-</a-assets>
-
-<a-camera
-position="0 0 0"
-look-controls="enabled:false"
-></a-camera>
-
-<a-entity
-id="target"
-mindar-image-target="targetIndex:0"
->
-
-<a-video
-id="videoPlane"
-
-src="#video"
-
-position="0 0 0"
-
-width="1"
-height="1.5"
-
-material="
-shader:flat;
-transparent:true;
-depthTest:false;
-depthWrite:false;
-toneMapped:false;
-"
-></a-video>
-
-</a-entity>
+  <a-entity id="target" mindar-image-target="targetIndex:0">
+    <a-video
+      id="videoPlane"
+      src="#video"
+      position="0 0 0"
+      width="1"
+      height="1.5"
+      material="
+        shader:flat;
+        transparent:true;
+        depthTest:false;
+        depthWrite:false;
+        toneMapped:false;
+      "
+    ></a-video>
+  </a-entity>
 
 </a-scene>
 
 <script>
-
-const scene = document.querySelector("a-scene");
-
-const video = document.querySelector("#video");
-
-const target = document.querySelector("#target");
-
-const videoPlane = document.querySelector("#videoPlane");
-
-const loading = document.querySelector("#loading");
-
-const tapUI = document.querySelector("#tap");
-
-let tracking = false;
-
-let audioUnlocked = false;
-
-let lostTimeout = null;
-
-
-
-// LOADING REMOVE
-
-scene.addEventListener("renderstart", ()=>{
-
-setTimeout(()=>{
-
-loading.classList.add("hide");
-
-},300);
-
-});
-
-
-
-// VIDEO FIT
-
-video.addEventListener("loadedmetadata", ()=>{
-
-const vw = video.videoWidth;
-
-const vh = video.videoHeight;
-
-const ratio = vw / vh;
-
-if(ratio > 1){
-
-videoPlane.setAttribute("width", ratio);
-
-videoPlane.setAttribute("height", 1);
-
-}else{
-
-videoPlane.setAttribute("width", 1);
-
-videoPlane.setAttribute("height", 1 / ratio);
-
-}
-
-});
-
-
-
-// PRELOAD VIDEO
-
-async function preloadVideo(){
-
-try{
-
-video.muted = true;
-
-await video.play();
-
-video.pause();
-
-video.currentTime = 0;
-
-}catch(e){}
-
-}
-
-window.addEventListener("load", preloadVideo);
-
-
-
-// AUDIO UNLOCK
-
-async function unlockAudio(){
-
-if(audioUnlocked) return;
-
-audioUnlocked = true;
-
-try{
-
-video.muted = false;
-
-await video.play();
-
-video.pause();
-
-video.currentTime = 0;
-
-}catch(e){}
-
-tapUI.classList.add("hide");
-
-}
-
-document.body.addEventListener(
-"click",
-unlockAudio,
-{ once:true }
-);
-
-document.body.addEventListener(
-"touchstart",
-unlockAudio,
-{ once:true }
-);
-
-
-
-// TARGET FOUND
-
-target.addEventListener("targetFound", async ()=>{
-
-clearTimeout(lostTimeout);
-
-if(tracking) return;
-
-tracking = true;
-
-try{
-
-if(audioUnlocked){
-
-video.muted = false;
-
-}else{
-
-video.muted = true;
-
-}
-
-video.currentTime = 0;
-
-await video.play();
-
-}catch(e){}
-
-});
-
-
-
-// TARGET LOST
-
-target.addEventListener("targetLost", ()=>{
-
-lostTimeout = setTimeout(()=>{
-
-tracking = false;
-
-video.pause();
-
-},120);
-
-});
-
-
-
-// PAGE VISIBILITY
-
-document.addEventListener("visibilitychange", ()=>{
-
-if(document.hidden){
-
-video.pause();
-
-}else{
-
-if(tracking){
-
-video.play();
-
-}
-
-}
-
-});
-
-
-
-// IOS FIX
-
-video.setAttribute("playsinline", "");
-
-video.setAttribute("webkit-playsinline", "");
-
-
-
-// FORCE VIDEO TEXTURE UPDATE
-
-AFRAME.registerComponent("video-updater", {
-
-tick: function(){
-
-if(video.readyState >= 2){
-
-const mesh = this.el.getObject3D("mesh");
-
-if(mesh){
-
-mesh.material.map.needsUpdate = true;
-
-}
-
-}
-
-}
-
-});
-
-videoPlane.setAttribute("video-updater","");
-
-
-
-// PERFORMANCE OPTIMIZATION
-
-AFRAME.registerComponent("visibility-handler", {
-
-tick:function(){
-
-this.el.object3D.visible = tracking;
-
-}
-
-});
-
-videoPlane.setAttribute("visibility-handler","");
-
+(function(){
+
+  const scene      = document.querySelector("a-scene");
+  const video      = document.querySelector("#video");
+  const assets     = document.querySelector("#assets");
+  const target     = document.querySelector("#target");
+  const videoPlane = document.querySelector("#videoPlane");
+  const loading    = document.querySelector("#loading");
+  const errorEl    = document.querySelector("#error");
+  const tapUI      = document.querySelector("#tap");
+
+  let tracking      = false;
+  let audioUnlocked = false;
+  let lostTimer     = null;
+  let updaterActive = false;
+
+  /* ─── iOS fixes ─────────────────────────────────── */
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+
+  /* ─── Error recovery ─────────────────────────────── */
+  // Catch .mind file load failure via fetch before A-Frame tries
+  fetch("targets.mind", { method: "HEAD" }).catch(() => showError());
+
+  scene.addEventListener("arError", showError);
+
+  function showError() {
+    loading.classList.add("hide");
+    errorEl.classList.add("show");
+  }
+
+  /* ─── Loading removal ────────────────────────────── */
+  scene.addEventListener("renderstart", () => {
+    // Give MindAR a moment to initialise its UI before we hide our screen
+    setTimeout(() => loading.classList.add("hide"), 400);
+  });
+
+  /* ─── Tap prompt visibility ──────────────────────── */
+  // Only show if audio unlock is actually needed (non-iOS always auto-unlocks)
+  function maybeShowTapUI() {
+    if (!audioUnlocked) tapUI.classList.remove("hide");
+  }
+  // We defer showing until the user has found a target (no point showing on load)
+
+  /* ─── Video dimension fit ────────────────────────── */
+  video.addEventListener("loadedmetadata", () => {
+    const ratio = video.videoWidth / video.videoHeight;
+    if (ratio > 1) {
+      videoPlane.setAttribute("width",  ratio);
+      videoPlane.setAttribute("height", 1);
+    } else {
+      videoPlane.setAttribute("width",  1);
+      videoPlane.setAttribute("height", 1 / ratio);
+    }
+  });
+
+  /* ─── Preload video (muted) ──────────────────────── */
+  // Wait for the A-Frame asset system to signal assets are loaded
+  assets.addEventListener("loaded", () => {
+    video.muted = true;
+    video.play().then(() => {
+      video.pause();
+      video.currentTime = 0;
+    }).catch(() => {});
+  });
+
+  /* ─── Audio unlock (unified pointer, fires once) ──── */
+  // Using "pointerdown" avoids the iOS double-fire bug where a tap
+  // triggers both "click" and "touchstart" on the same element.
+  document.body.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+
+  async function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    tapUI.classList.add("hide");
+
+    try {
+      video.muted = false;
+      await video.play();
+      video.pause();
+      video.currentTime = 0;
+    } catch(e) {
+      // If it fails here, we'll set muted=false on the next targetFound
+      video.muted = true;
+      audioUnlocked = false;
+    }
+  }
+
+  /* ─── Target found ───────────────────────────────── */
+  target.addEventListener("targetFound", async () => {
+    clearTimeout(lostTimer);
+    lostTimer = null;
+
+    if (tracking) return;
+    tracking = true;
+
+    videoPlane.object3D.visible = true;
+    maybeShowTapUI();
+    setUpdaterActive(true);
+
+    try {
+      video.muted = !audioUnlocked;
+      if (video.readyState >= 2) video.currentTime = 0;
+      await video.play();
+    } catch(e) {}
+  });
+
+  /* ─── Target lost ────────────────────────────────── */
+  target.addEventListener("targetLost", () => {
+    // 800ms grace period avoids flicker from brief occlusions
+    lostTimer = setTimeout(() => {
+      tracking = false;
+      video.pause();
+      videoPlane.object3D.visible = false;
+      setUpdaterActive(false);
+    }, 800);
+  });
+
+  /* ─── Page visibility ─────────────────────────────── */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      video.pause();
+    } else if (tracking) {
+      video.play().catch(() => {});
+    }
+  });
+
+  /* ─── Video texture updater (event-driven, not tick) ─ */
+  // Only runs when actively tracking — avoids constant GPU drain
+  let rafId = null;
+
+  function setUpdaterActive(on) {
+    if (on && !updaterActive) {
+      updaterActive = true;
+      rafLoop();
+    } else if (!on && updaterActive) {
+      updaterActive = false;
+      cancelAnimationFrame(rafId);
+    }
+  }
+
+  function rafLoop() {
+    if (!updaterActive) return;
+    if (video.readyState >= 2) {
+      const mesh = videoPlane.getObject3D("mesh");
+      if (mesh && mesh.material && mesh.material.map) {
+        mesh.material.map.needsUpdate = true;
+      }
+    }
+    rafId = requestAnimationFrame(rafLoop);
+  }
+
+  /* ─── Initial state ───────────────────────────────── */
+  videoPlane.addEventListener("loaded", () => {
+    videoPlane.object3D.visible = false;
+  });
+
+})();
 </script>
 
 </body>
